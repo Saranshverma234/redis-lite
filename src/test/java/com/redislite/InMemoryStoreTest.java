@@ -26,4 +26,17 @@ class InMemoryStoreTest {
 
         assertNull(store.get("name"));
     }
+
+    @Test
+    void shouldReturnNullForExpiredKey() throws InterruptedException{
+
+        InMemoryStore store = new InMemoryStore();
+
+        store.set("name" , "Saransh");
+        store.expire("name", 1L);
+
+        Thread.sleep(1100);
+
+        assertNull(store.get("name"));
+    }
 }
