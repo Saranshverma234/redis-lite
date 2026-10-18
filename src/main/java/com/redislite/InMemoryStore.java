@@ -35,9 +35,15 @@ public class InMemoryStore {
     }
 
     //EXPIRATION command
-    public void expire(String key , Long ttl){
+    public boolean expire(String key , Long ttl){
+
+        if(!data.containsKey(key)){
+            return false;
+        }
+        
         Long expirationTime = System.currentTimeMillis() + (ttl * 1000L);
         expTime.put(key , expirationTime);
+        return true;
     }
 
     

@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InMemoryStoreTest {
 
@@ -55,7 +57,7 @@ void shouldClearOldTtlWhenKeyIsOverwritten() {
 
 
 @Test 
-void ClearOldTtlWhenKeyIsDeleted() {
+void clearOldTtlWhenKeyIsDeleted() {
     InMemoryStore store = new InMemoryStore();
 
     store.set("name" , "Saransh" );
@@ -65,5 +67,26 @@ void ClearOldTtlWhenKeyIsDeleted() {
 
     assertNull(store.get("name"));
 }
+
+
+@Test
+void shouldNotSetTtlForNonexistentKey() {
+    InMemoryStore store = new InMemoryStore();
+
+    boolean result = store.expire("missing" , 20L);
+
+    assertFalse(result);
+}
+
+@Test
+void shouldSetTtlForExistingKey() {
+    InMemoryStore store = new InMemoryStore();
+    store.set("name", "Saransh");
+
+    boolean result = store.expire("name", 20L);
+
+    assertTrue(result);
+}
+
 
 }
