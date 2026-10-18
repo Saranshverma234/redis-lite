@@ -39,4 +39,31 @@ class InMemoryStoreTest {
 
         assertNull(store.get("name"));
     }
+
+    
+@Test
+void shouldClearOldTtlWhenKeyIsOverwritten() {
+    InMemoryStore store = new InMemoryStore();
+
+    store.set("name", "Saransh");
+    store.expire("name", 1L);
+
+    store.set("name", "Alex");
+
+    assertEquals("Alex", store.get("name"));
+}
+
+
+@Test 
+void ClearOldTtlWhenKeyIsDeleted() {
+    InMemoryStore store = new InMemoryStore();
+
+    store.set("name" , "Saransh" );
+    store.expire("name" , 10L);
+
+    store.delete("name");
+
+    assertNull(store.get("name"));
+}
+
 }

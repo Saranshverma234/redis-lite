@@ -9,21 +9,34 @@ public class InMemoryStore {
     //SET command 
     public void set(String key, String value){
         data.put(key,value);
+        expTime.remove(key);
     }
 
     //GET command
     public String get(String key) {
+
+        Long expirationTime = expTime.get(key);
+
+        if (expirationTime!=null &&  System.currentTimeMillis()>=expirationTime){
+
+            data.remove(key);
+            expTime.remove(key);
+            return null;
+
+        }
+        
         return data.get(key);
     }
 
     //DELETE command
     public void delete(String key){
         data.remove(key);
+        expTime.remove(key);
     }
 
     //EXPIRATION command
     public void expire(String key , Long ttl){
-        long expirationTime = System.currentTimeMillis() + (ttl * 1000L);
+        Long expirationTime = System.currentTimeMillis() + (ttl * 1000L);
         expTime.put(key , expirationTime);
     }
 
