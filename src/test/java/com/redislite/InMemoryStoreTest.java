@@ -88,5 +88,28 @@ void shouldSetTtlForExistingKey() {
     assertTrue(result);
 }
 
+@Test
+void shouldRejectZeroTtl() {
+    InMemoryStore store = new InMemoryStore();
+    store.set("name", "Saransh");
+
+    boolean result = store.expire("name", 0L);
+
+    assertFalse(result);
+    assertEquals("Saransh", store.get("name"));
+}
+
+@Test
+void shouldRejectNegativeTtl() {
+    InMemoryStore store = new InMemoryStore();
+    store.set("name", "Saransh");
+
+    boolean result = store.expire("name", -5L);
+
+    assertFalse(result);
+    assertEquals("Saransh", store.get("name"));
+}
+
+
 
 }

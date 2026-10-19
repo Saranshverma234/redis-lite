@@ -40,7 +40,11 @@ public class InMemoryStore {
         if(!data.containsKey(key)){
             return false;
         }
-        
+
+        if(ttl<=0){
+            return false;
+        }
+
         Long expirationTime = System.currentTimeMillis() + (ttl * 1000L);
         expTime.put(key , expirationTime);
         return true;
