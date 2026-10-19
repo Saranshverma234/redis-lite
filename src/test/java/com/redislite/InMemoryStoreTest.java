@@ -110,6 +110,32 @@ void shouldRejectNegativeTtl() {
     assertEquals("Saransh", store.get("name"));
 }
 
+@Test
+void shouldReturnTrueWhenKeyExists() {
+    InMemoryStore store = new InMemoryStore();
+    store.set("name", "Saransh");
+
+    assertTrue(store.exists("name"));
+}
+
+@Test
+void shouldReturnFalseWhenKeyDoesNotExist() {
+    InMemoryStore store = new InMemoryStore();
+
+    assertFalse(store.exists("missing"));
+}
+
+@Test
+void shouldRemoveExpiredKeyWhenCheckingExists() throws InterruptedException {
+    InMemoryStore store = new InMemoryStore();
+    store.set("name", "Saransh");
+    store.expire("name", 1L);
+
+    Thread.sleep(1100);
+
+    assertFalse(store.exists("name"));
+    assertNull(store.get("name"));
+}
 
 
 }

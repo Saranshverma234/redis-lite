@@ -50,5 +50,11 @@ public class InMemoryStore {
         return true;
     }
 
+    //EXISTS command
+
+    public boolean exists(String key){
+        return get(key)!=null;
+    }
+
     
 }
