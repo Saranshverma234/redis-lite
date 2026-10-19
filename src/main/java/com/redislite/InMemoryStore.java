@@ -56,5 +56,22 @@ public class InMemoryStore {
         return get(key)!=null;
     }
 
+    //TTL command 
+
+    public long ttl(String key){
+
+        if(get(key)==null){
+            return -2;
+        }
+
+        Long expirationTime = expTime.get(key);
+
+        if(expirationTime==null){
+            return -1;
+        }
+
+        return (expirationTime-System.currentTimeMillis())/1000L;
+    }
+
     
 }

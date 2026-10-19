@@ -137,5 +137,31 @@ void shouldRemoveExpiredKeyWhenCheckingExists() throws InterruptedException {
     assertNull(store.get("name"));
 }
 
+@Test
+void shouldReturnMinusTwoWhenKeyDoesNotExist() {
+    InMemoryStore store = new InMemoryStore();
+
+    assertEquals(-2, store.ttl("missing"));
+}
+
+@Test
+void shouldReturnMinusOneWhenKeyHasNoTtl() {
+    InMemoryStore store = new InMemoryStore();
+    store.set("name", "Saransh");
+
+    assertEquals(-1, store.ttl("name"));
+}
+
+@Test
+void shouldReturnPositiveTtlForExpiringKey() {
+    InMemoryStore store = new InMemoryStore();
+    store.set("name", "Saransh");
+
+    boolean result = store.expire("name", 60L);
+
+    assertTrue(result);
+    assertTrue(store.ttl("name") > 0);
+    assertTrue(store.ttl("name") <= 60);
+}
 
 }
