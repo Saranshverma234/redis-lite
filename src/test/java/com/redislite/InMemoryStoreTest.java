@@ -164,4 +164,48 @@ void shouldReturnPositiveTtlForExpiringKey() {
     assertTrue(store.ttl("name") <= 60);
 }
 
+@Test
+void shouldRemoveTtlWithoutDeletingKey(){
+    InMemoryStore store = new InMemoryStore();
+
+    store.set("name" , "saransh");
+    store.expire("name" , 20L);
+
+    assertTrue(store.persist("name"));
+    assertEquals("saransh" , store.get("name"));
+    assertEquals(-1 , store.ttl("name"));
+
+}
+
+@Test
+ void shouldReturnFalseWhenKeyHasNoTtl(){
+    InMemoryStore store = new InMemoryStore();
+    store.set("name","saransh");
+
+    assertFalse(store.persist("name"));
+    assertEquals("saransh" , store.get("name"));
+
+ }
+
+@Test
+ void shouldReturnFalseWhenKeyDoesNotExistWhilePersisting() {
+    InMemoryStore store = new InMemoryStore();
+
+    assertFalse(store.persist("missing"));
+}
+
+@Test
+void shouldReturnFalseWhenKeyHasExpired() throws InterruptedException {
+    InMemoryStore store = new InMemoryStore();
+    store.set("name", "Saransh");
+    store.expire("name", 1L);
+
+    Thread.sleep(1100);
+
+    assertFalse(store.persist("name"));
+    assertFalse(store.exists("name"));
+    assertEquals(-2, store.ttl("name"));
+}
+
+
 }

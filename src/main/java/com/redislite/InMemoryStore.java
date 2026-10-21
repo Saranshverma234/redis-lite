@@ -73,5 +73,16 @@ public class InMemoryStore {
         return (expirationTime-System.currentTimeMillis())/1000L;
     }
 
+    //PERSIST command 
+
+    public boolean persist(String key){
+
+        if(get(key)==null){
+            return false;
+        }
+
+        return expTime.remove(key)!=null;
+    }
+
     
 }
