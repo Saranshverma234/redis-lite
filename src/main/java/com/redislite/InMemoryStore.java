@@ -84,5 +84,31 @@ public class InMemoryStore {
         return expTime.remove(key)!=null;
     }
 
+    //INCREMENT command
+
+    public long incr (String key){
+
+        String value = get(key);
+
+        if(value==null){
+            set(key, "1");
+            return 1L;
+        }
+
+        long currentValue;
+
+        try{
+            currentValue = Long.parseLong(value);
+        } catch(NumberFormatException e){
+            throw new IllegalArgumentException ("Value entered is not a valid integer: "+value);
+        }
+
+        long incrementedValue = Math.incrementExact(currentValue);
+        set(key , String.valueOf(incrementedValue));
+
+        return incrementedValue;
+    
+    }
+
     
 }

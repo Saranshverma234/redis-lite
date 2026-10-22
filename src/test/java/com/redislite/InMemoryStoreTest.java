@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -207,5 +208,45 @@ void shouldReturnFalseWhenKeyHasExpired() throws InterruptedException {
     assertEquals(-2, store.ttl("name"));
 }
 
+
+@Test 
+void shouldIncrementExistingValueOfKey(){
+
+    InMemoryStore store = new InMemoryStore();
+    store.set("counter" , "5");
+
+    assertEquals(6L , store.incr("counter"));
+    assertEquals("6" , store.get("counter")); 
+}
+
+@Test
+void shouldInitializeMissingKeyToOne() {
+    InMemoryStore store = new InMemoryStore();
+
+    assertEquals(1L, store.incr("visits"));
+    assertEquals("1", store.get("visits"));
+}
+
+@Test
+void shouldIncrementNegativeValue() {
+    InMemoryStore store = new InMemoryStore();
+    store.set("temperature", "-5");
+
+    assertEquals(-4L, store.incr("temperature"));
+    assertEquals("-4", store.get("temperature"));
+}
+
+@Test
+void shouldRejectNonNumericValue() {
+    InMemoryStore store = new InMemoryStore();
+    store.set("visits", "hello");
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> store.incr("visits")
+    );
+
+    assertEquals("hello", store.get("visits"));
+}
 
 }
