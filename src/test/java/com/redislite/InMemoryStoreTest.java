@@ -249,4 +249,17 @@ void shouldRejectNonNumericValue() {
     assertEquals("hello", store.get("visits"));
 }
 
+@Test
+void shouldRejectLongOverflow() {
+    InMemoryStore store = new InMemoryStore();
+    store.set("counter", "9223372036854775807");
+
+    assertThrows(
+        ArithmeticException.class,
+        () -> store.incr("counter")
+    );
+
+    assertEquals("9223372036854775807", store.get("counter"));
+}
+
 }
