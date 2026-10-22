@@ -289,4 +289,28 @@ void shouldHandleConcurrentIncrements() throws InterruptedException{
 
 }
 
+
+@Test 
+void shouldHandleDifferentNumbersOfIncrementsPerThread() throws InterruptedException{
+
+    InMemoryStore store = new InMemoryStore();
+    store.set("counter" , "0");
+
+    int[] incrementsPerThread = {50 , 100 , 150 , 200};
+
+    ExecutorService executor = Executors.newFixedThreadPool(incrementsPerThread.length);
+
+    for(int increments : incrementsPerThread){
+        executor.submit(() ->{
+            for(int j=0; j<increments ; j++){
+                store.incr("counter");
+            }
+        });
+    }
+
+    executor.shutdown();
+    assertTrue(executor.awaitTermination(10 , TimeUnit.SECONDS));
+    assertEquals("500" , store.get("counter"));
+}
+
 }
