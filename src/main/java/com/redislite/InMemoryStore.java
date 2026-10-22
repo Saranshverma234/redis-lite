@@ -86,7 +86,7 @@ public class InMemoryStore {
 
     //INCREMENT command
 
-    public long incr (String key){
+    public synchronized long incr (String key){
 
         String value = get(key);
 

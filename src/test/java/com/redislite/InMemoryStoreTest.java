@@ -7,6 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 class InMemoryStoreTest {
 
@@ -260,6 +263,30 @@ void shouldRejectLongOverflow() {
     );
 
     assertEquals("9223372036854775807", store.get("counter"));
+}
+
+@Test 
+void shouldHandleConcurrentIncrements() throws InterruptedException{
+    InMemoryStore store = new InMemoryStore();
+    store.set("counter" , "0");
+
+    int numberOfThreads = 10;
+    int incrementsPerThread =100;
+
+    ExecutorService executor = Executors.newFixedThreadPool(numberOfThreads);
+
+    for(int i=0 ; i<numberOfThreads ; i++){
+        executor.submit(() ->{
+            for(int j=0 ; j<incrementsPerThread ; j++){
+                store.incr("counter");
+            }
+        });
+    }
+
+    executor.shutdown();
+    assertTrue(executor.awaitTermination(10 , TimeUnit.SECONDS));
+    assertEquals("1000" , store.get("counter"));
+
 }
 
 }
