@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -312,5 +313,36 @@ void shouldHandleDifferentNumbersOfIncrementsPerThread() throws InterruptedExcep
     assertTrue(executor.awaitTermination(10 , TimeUnit.SECONDS));
     assertEquals("500" , store.get("counter"));
 }
+
+
+
+@Test
+void shouldHandleConcurrentWritesToSameKey()
+        throws InterruptedException {
+
+    InMemoryStore store = new InMemoryStore();
+
+    int numberOfThreads = 10;
+    ExecutorService executor =
+            Executors.newFixedThreadPool(numberOfThreads);
+
+    for (int i = 0; i < numberOfThreads; i++) {
+        final int threadId = i;
+
+        executor.submit(() -> {
+            for (int j = 0; j < 100; j++) {
+                store.set("shared-key",
+                        "thread-" + threadId + "-value-" + j);
+            }
+        });
+    }
+
+    executor.shutdown();
+
+    assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
+
+    assertNotNull(store.get("shared-key"));
+}
+
 
 }
