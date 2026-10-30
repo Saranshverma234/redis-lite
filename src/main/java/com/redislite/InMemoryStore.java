@@ -2,17 +2,20 @@ package com.redislite;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class InMemoryStore {
+public class InMemoryStore implements AutoCloseable {
 
     /** Immutable: value and expiry live together, so they always change together. */
     private record Entry(String value, long expiresAtMs) {
         static final long NO_EXPIRY = -1L;
 
-        boolean isExpired(long nowMs) {
-            return expiresAtMs != NO_EXPIRY && nowMs >= expiresAtMs;
-        }
+             boolean isExpired(long nowMs) {
+                  return expiresAtMs != NO_EXPIRY && nowMs >= expiresAtMs;
+             }
     }
 
     private final ConcurrentMap<String, Entry> data = new ConcurrentHashMap<>();
@@ -113,5 +116,72 @@ public class InMemoryStore {
             return new Entry(String.valueOf(result[0]), cur.expiresAtMs()); // keeps the TTL, like Redis
         });
         return result[0];
+
+
+       
+
+
     }
+
+
+    //Creating an Internal STORE-SWEEPER
+
+    public int size(){
+        return data.size(); //handy for test
+    }
+
+
+    
+     private final ScheduledExecutorService sweeper;
+
+
+        public InMemoryStore() {
+            this.sweeper = null;
+        }
+
+
+     public InMemoryStore(long sweepIntervalMs) {
+            
+            this.sweeper = Executors.newSingleThreadScheduledExecutor(r ->{
+                Thread t = new Thread(r , "Sweeper-Thread");
+                t.setDaemon(true);
+                return t;
+            });
+
+            sweeper.scheduleWithFixedDelay(this::sweep,sweepIntervalMs, sweepIntervalMs, TimeUnit.MILLISECONDS);
+        }
+
+
+
+        void sweep(){
+
+            try{
+
+                 long now = now();
+                 
+                 for(String key : data.keySet()){
+                    Entry entry = data.get(key);
+                    if(entry!=null &&  entry.isExpired(now)){
+                        
+                        data.computeIfPresent(key , (k, cur) -> cur.isExpired(now)? null : cur); 
+                        // double check for isExpired because another thread could have updated the value in between
+                        //in the first check the map isnt locked , however during the second check the map is
+                        //locked until compute is completed
+
+                    }
+                 }
+
+            } catch(RuntimeException e){
+
+                e.printStackTrace();
+
+            }
+        }
+
+
+        @Override 
+        public void close(){
+
+            if(sweeper != null) sweeper.shutdownNow();
+        }
 }
