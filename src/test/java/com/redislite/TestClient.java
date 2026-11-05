@@ -29,6 +29,12 @@ class TestClient implements AutoCloseable {
         return in.readLine();
     }
  
+    /** Sends text with NO line terminator, so the server is left waiting for the rest of the line. */
+    void sendPartial(String text) throws IOException {
+        out.write(text);
+        out.flush();
+    }
+ 
     @Override
     public void close() throws IOException {
         socket.close();
