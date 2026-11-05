@@ -27,6 +27,7 @@ public class CommandProcessor {
         m.put("TTL", new TtlCommand());
         m.put("PERSIST", new PersistCommand());
         m.put("INCR", new IncrCommand());
+        m.put("KEYS", new KeysCommand());
         this.commands = Map.copyOf(m); // immutable
     }
  

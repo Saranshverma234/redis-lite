@@ -1,5 +1,9 @@
 package com.redislite;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
@@ -39,9 +43,19 @@ public class InMemoryStore implements AutoCloseable {
     }
 
     // SET
-    public void set(String key, String value) {
-        data.put(key, new Entry(value, Entry.NO_EXPIRY)); // one atomic step; also clears any TTL
+    public void set(String key, String value, long ttlSeconds) {
+    if (ttlSeconds <= 0) {
+        throw new IllegalArgumentException("ttl must be positive");
     }
+    long expiresAt = Math.addExact(now(), Math.multiplyExact(ttlSeconds, 1000L));
+    data.put(key, new Entry(value, expiresAt));
+}
+
+    //SET without expiry
+
+public void set(String key, String value) {
+    data.put(key, new Entry(value, Entry.NO_EXPIRY));
+}
 
     // GET
     public String get(String key) {
@@ -50,9 +64,10 @@ public class InMemoryStore implements AutoCloseable {
     }
 
     // DELETE
-    public void delete(String key) {
-        data.remove(key);
-    }
+   public boolean delete(String key) {
+    Entry removed = data.remove(key);
+    return removed != null && !removed.isExpired(now());
+}
 
     // EXISTS
     public boolean exists(String key) {
@@ -124,6 +139,21 @@ public class InMemoryStore implements AutoCloseable {
     }
 
 
+    // KEYS
+
+    public List<String> keys(String pattern) {
+    long now = now();
+    List<String> result = new ArrayList<>();
+    for (Map.Entry<String, Entry> e : data.entrySet()) {
+        if (!e.getValue().isExpired(now) && GlobMatcher.matches(pattern, e.getKey())) {
+            result.add(e.getKey());
+        }
+    }
+    Collections.sort(result);   // stable output, easier to test
+    return result;
+}
+
+
     //Creating an Internal STORE-SWEEPER
 
     public int size(){
@@ -131,7 +161,7 @@ public class InMemoryStore implements AutoCloseable {
     }
 
 
-    
+
      private final ScheduledExecutorService sweeper;
 
 
