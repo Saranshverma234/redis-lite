@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InMemoryStoreConcurrencyTest {
 
-    private static final int THREADS = 20;
+    private static final int THREADS = 50;
 
     @FunctionalInterface
     interface ThreadTask {
@@ -59,10 +59,10 @@ class InMemoryStoreConcurrencyTest {
         }
     }
 
-    // 1) No lost updates: 20 threads x 1000 increments must give exactly 20000.
+    // 1) No lost updates: 50 threads x 1000 increments must give exactly 20000.
     @Test
     void concurrentIncrIsExact() throws Exception {
-        InMemoryStore store = new InMemoryStore();
+        InMemoryStore store = new InMemoryStore(50);
         int perThread = 1000;
 
         runConcurrently(THREADS, id -> {
@@ -77,7 +77,7 @@ class InMemoryStoreConcurrencyTest {
     // 2) incr must keep the TTL, even while many threads increment at once.
     @Test
     void concurrentIncrKeepsTtl() throws Exception {
-        InMemoryStore store = new InMemoryStore();
+        InMemoryStore store = new InMemoryStore(50);
         store.set("counter", "0");
         assertTrue(store.expire("counter", 60));
 
@@ -95,7 +95,7 @@ class InMemoryStoreConcurrencyTest {
     // 3) A get() that cleans up an expired key must never delete a value set by another thread.
     @Test
     void getNeverDeletesAFreshValue() throws Exception {
-        InMemoryStore store = new InMemoryStore();
+        InMemoryStore store = new InMemoryStore(50);
         int n = 200;
 
         for (int i = 0; i < n; i++) {
@@ -124,7 +124,7 @@ class InMemoryStoreConcurrencyTest {
     // 4) Regression test: EXPIRE must not bring an expired key back to life.
     @Test
     void expireDoesNotReviveExpiredKey() throws Exception {
-        InMemoryStore store = new InMemoryStore();
+        InMemoryStore store = new InMemoryStore(50);
         store.set("key", "value");
         assertTrue(store.expire("key", 1));
         Thread.sleep(1100);
@@ -138,7 +138,7 @@ class InMemoryStoreConcurrencyTest {
     //    Nothing may throw, and ttl() may only return -2, -1, or 0..3.
     @Test
     void mixedOperationsStress() throws Exception {
-        InMemoryStore store = new InMemoryStore();
+        InMemoryStore store = new InMemoryStore(50);
         String[] keys = {"a", "b", "c"};
 
         runConcurrently(THREADS, id -> {
@@ -161,4 +161,18 @@ class InMemoryStoreConcurrencyTest {
             }
         });
     }
+
+
+       @Test
+   void sweeperRemovesExpiredKeysWithoutAnyReads() throws Exception {
+       try (InMemoryStore store = new InMemoryStore(50)) {
+           for (int i = 0; i < 100; i++) {
+               store.set("k" + i, "v");
+               store.expire("k" + i, 1);
+           }
+           assertEquals(100, store.size());
+           Thread.sleep(1600);          // TTL 1s + a few sweep cycles
+           assertEquals(0, store.size());
+       }
+   }
 }
