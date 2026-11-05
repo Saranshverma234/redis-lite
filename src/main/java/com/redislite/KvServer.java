@@ -22,10 +22,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class KvServer implements AutoCloseable {
  
     private static final int DEFAULT_MAX_CLIENTS = 32;
+    private static final int DEFAULT_IDLE_TIMEOUT_MS = 60_000;
+    private static final int DEFAULT_MAX_LINE_BYTES = 8192;
  
     private final CommandProcessor processor;
     private final int port;
     private final int maxClients;
+    private final int idleTimeoutMs;
+    private final int maxLineBytes;
  
     // Sockets of clients currently being served, so close() can force their blocked reads to end.
     private final Set<Socket> activeClients = ConcurrentHashMap.newKeySet();
@@ -39,12 +43,25 @@ public class KvServer implements AutoCloseable {
     }
  
     public KvServer(CommandProcessor processor, int port, int maxClients) {
+        this(processor, port, maxClients, DEFAULT_IDLE_TIMEOUT_MS, DEFAULT_MAX_LINE_BYTES);
+    }
+ 
+    public KvServer(CommandProcessor processor, int port, int maxClients,
+                    int idleTimeoutMs, int maxLineBytes) {
         if (maxClients <= 0) {
             throw new IllegalArgumentException("maxClients must be positive");
+        }
+        if (idleTimeoutMs < 0) {
+            throw new IllegalArgumentException("idleTimeoutMs must not be negative (0 = no timeout)");
+        }
+        if (maxLineBytes <= 0) {
+            throw new IllegalArgumentException("maxLineBytes must be positive");
         }
         this.processor = processor;
         this.port = port;
         this.maxClients = maxClients;
+        this.idleTimeoutMs = idleTimeoutMs;
+        this.maxLineBytes = maxLineBytes;
     }
  
     /** Binds the port and starts accepting on a background thread. Returns immediately. */
@@ -96,7 +113,7 @@ public class KvServer implements AutoCloseable {
     private void serve(Socket client) {
         activeClients.add(client);
         try {
-            new ClientHandler(client, processor).run();
+            new ClientHandler(client, processor, idleTimeoutMs, maxLineBytes).run();
         } finally {
             activeClients.remove(client);
         }
