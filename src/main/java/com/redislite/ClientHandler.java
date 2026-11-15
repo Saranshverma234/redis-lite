@@ -78,9 +78,10 @@ class ClientHandler implements Runnable {
                 }
                 return new String(bytes, 0, len, StandardCharsets.UTF_8);
             }
+            // Allow exactly one extra byte past the limit if it is the '\r' of a "\r\n" terminator.
             if (buf.size() >= maxBytes && !(b == '\r' && buf.size() == maxBytes)) {
-    throw new LineTooLongException();
-}
+                throw new LineTooLongException();
+            }
             buf.write(b);
         }
         return null;   // end of stream (a half-written last line is discarded)
