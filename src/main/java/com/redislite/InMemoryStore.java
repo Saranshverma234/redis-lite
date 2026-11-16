@@ -1,5 +1,6 @@
 package com.redislite;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -21,6 +22,40 @@ public class InMemoryStore implements AutoCloseable {
                   return expiresAtMs != NO_EXPIRY && nowMs >= expiresAtMs;
              }
     }
+
+
+
+    // for testing, so the test can see the expiry constant without importing Entry
+    public static final long NO_EXPIRY = Entry.NO_EXPIRY;
+
+@FunctionalInterface
+public interface EntryConsumer {
+    void accept(String key, String value, long expiresAtMs) throws IOException;
+}
+
+/** Calls the consumer for every live (non-expired) entry. */
+public void forEachLiveEntry(EntryConsumer consumer) throws IOException {
+    long now = now();
+    for (Map.Entry<String, Entry> e : data.entrySet()) {
+        Entry entry = e.getValue();
+        if (!entry.isExpired(now)) {
+            consumer.accept(e.getKey(), entry.value(), entry.expiresAtMs());
+        }
+    }
+}
+
+/** Puts an entry back at load time. Returns false (and stores nothing) if it has already expired. */
+public boolean restore(String key, String value, long expiresAtMs) {
+    Entry entry = new Entry(value, expiresAtMs);
+    if (entry.isExpired(now())) {
+        return false;
+    }
+    data.put(key, entry);
+    return true;
+}
+
+
+
 
     private final ConcurrentMap<String, Entry> data = new ConcurrentHashMap<>();
 
