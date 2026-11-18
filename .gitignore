@@ -20,3 +20,7 @@ target/
 
 # Java crash logs
 hs_err_pid*.log
+
+*.snapshot
+*.snapshot.tmp
+*.snapshot.corrupt
