@@ -223,4 +223,29 @@ class SnapshotManagerTest {
         assertTrue(n <= 500, "more entries than keys exist: " + n);
         assertEquals(n, restored.size());
     }
+
+
+    @Test
+void duplicateKeysInAFileKeepTheLaterRow() throws Exception {
+    try (OutputStream raw = Files.newOutputStream(file());
+         DataOutputStream out = new DataOutputStream(raw)) {
+        out.writeInt(0x52444C31);                  // magic
+        out.writeInt(1);                           // version
+        for (String value : new String[] {"old", "new"}) {
+            out.writeBoolean(true);
+            byte[] k = "k".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            out.writeInt(k.length);
+            out.write(k);
+            byte[] v = value.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            out.writeInt(v.length);
+            out.write(v);
+            out.writeLong(-1L);                    // no expiry
+        }
+        out.writeBoolean(false);                   // end marker
+    }
+
+    InMemoryStore store = new InMemoryStore();
+    assertEquals(1, managerFor(store).load());
+    assertEquals("new", store.get("k"));
+}
 }
