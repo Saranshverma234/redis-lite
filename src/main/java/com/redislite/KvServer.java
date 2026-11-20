@@ -1,5 +1,5 @@
 package com.redislite;
- 
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
@@ -14,40 +14,46 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
- 
+
 /**
  * Day B version: each client is served on a thread from a bounded pool.
  * When every thread is busy, a new connection is told "-ERR server busy" and closed.
  */
 public class KvServer implements AutoCloseable {
- 
+
     private static final int DEFAULT_MAX_CLIENTS = 32;
     private static final int DEFAULT_IDLE_TIMEOUT_MS = 60_000;
     private static final int DEFAULT_MAX_LINE_BYTES = 8192;
- 
+
     private final CommandProcessor processor;
     private final int port;
     private final int maxClients;
     private final int idleTimeoutMs;
     private final int maxLineBytes;
- 
+    private final InetAddress bindAddress;
+
     // Sockets of clients currently being served, so close() can force their blocked reads to end.
     private final Set<Socket> activeClients = ConcurrentHashMap.newKeySet();
- 
+
     private ServerSocket serverSocket;
     private Thread acceptThread;
     private ThreadPoolExecutor pool;
- 
+
     public KvServer(CommandProcessor processor, int port) {
         this(processor, port, DEFAULT_MAX_CLIENTS);
     }
- 
+
     public KvServer(CommandProcessor processor, int port, int maxClients) {
         this(processor, port, maxClients, DEFAULT_IDLE_TIMEOUT_MS, DEFAULT_MAX_LINE_BYTES);
     }
- 
+
     public KvServer(CommandProcessor processor, int port, int maxClients,
                     int idleTimeoutMs, int maxLineBytes) {
+        this(processor, port, maxClients, idleTimeoutMs, maxLineBytes, InetAddress.getLoopbackAddress());
+    }
+
+    public KvServer(CommandProcessor processor, int port, int maxClients,
+                    int idleTimeoutMs, int maxLineBytes, InetAddress bindAddress) {
         if (maxClients <= 0) {
             throw new IllegalArgumentException("maxClients must be positive");
         }
@@ -62,8 +68,12 @@ public class KvServer implements AutoCloseable {
         this.maxClients = maxClients;
         this.idleTimeoutMs = idleTimeoutMs;
         this.maxLineBytes = maxLineBytes;
+        if (bindAddress == null) {
+            throw new IllegalArgumentException("bindAddress must not be null");
+        }
+        this.bindAddress = bindAddress;
     }
- 
+
     /** Binds the port and starts accepting on a background thread. Returns immediately. */
     public void start() throws IOException {
         // core == max and a SynchronousQueue (which holds nothing): a connection either gets a
@@ -73,20 +83,21 @@ public class KvServer implements AutoCloseable {
                 0L, TimeUnit.MILLISECONDS,
                 new SynchronousQueue<>(),
                 daemonThreads());
- 
-        // Loopback only: there is no authentication, so don't expose the store to the network.
-        serverSocket = new ServerSocket(port, 50, InetAddress.getLoopbackAddress());
- 
+
+        // Loopback by default: there is no authentication, so only listen on other addresses
+        // (for example 0.0.0.0 inside a container) when the operator explicitly asks for it.
+        serverSocket = new ServerSocket(port, 50, bindAddress);
+
         acceptThread = new Thread(this::acceptLoop, "kv-accept");
         acceptThread.setDaemon(true);
         acceptThread.start();
     }
- 
+
     /** The port actually bound. Useful when constructed with port 0 (the OS picks a free one). */
     public int getPort() {
         return serverSocket.getLocalPort();
     }
- 
+
     private void acceptLoop() {
         while (!serverSocket.isClosed()) {
             try {
@@ -108,7 +119,7 @@ public class KvServer implements AutoCloseable {
             }
         }
     }
- 
+
     /** Runs on a pool thread for the whole life of one client connection. */
     private void serve(Socket client) {
         activeClients.add(client);
@@ -118,7 +129,7 @@ public class KvServer implements AutoCloseable {
             activeClients.remove(client);
         }
     }
- 
+
     private void rejectBusy(Socket client) {
         try (Socket s = client) {
             s.setSoTimeout(1000);
@@ -129,7 +140,7 @@ public class KvServer implements AutoCloseable {
             // the client may already be gone; nothing more to do
         }
     }
- 
+
     private static void closeQuietly(Socket s) {
         try {
             s.close();
@@ -137,7 +148,7 @@ public class KvServer implements AutoCloseable {
             // nothing useful to do
         }
     }
- 
+
     private static ThreadFactory daemonThreads() {
         AtomicInteger counter = new AtomicInteger(1);
         return r -> {
@@ -146,12 +157,12 @@ public class KvServer implements AutoCloseable {
             return t;
         };
     }
- 
+
     /** Blocks until the accept thread ends. Lets main() keep the JVM alive. */
     public void join() throws InterruptedException {
         acceptThread.join();
     }
- 
+
     @Override
     public void close() {
         try {

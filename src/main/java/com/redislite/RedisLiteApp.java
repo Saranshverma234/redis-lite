@@ -1,6 +1,7 @@
 package com.redislite;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -15,7 +16,14 @@ public final class RedisLiteApp implements AutoCloseable {
 
     /** snapshotFile == null turns persistence off. snapshotIntervalSeconds == 0 means "no periodic saves". */
     public record Config(int port, int maxClients, int idleTimeoutMs, int maxLineBytes,
-                         Path snapshotFile, long snapshotIntervalSeconds) {
+                         Path snapshotFile, long snapshotIntervalSeconds, InetAddress bindAddress) {
+
+        /** Same as above, listening on loopback only (the safe default). */
+        public Config(int port, int maxClients, int idleTimeoutMs, int maxLineBytes,
+                      Path snapshotFile, long snapshotIntervalSeconds) {
+            this(port, maxClients, idleTimeoutMs, maxLineBytes, snapshotFile, snapshotIntervalSeconds,
+                    InetAddress.getLoopbackAddress());
+        }
 
         public static Config defaults() {
             // 6380 so it never clashes with a real Redis on 6379
@@ -53,7 +61,8 @@ public final class RedisLiteApp implements AutoCloseable {
         }
 
         KvServer srv = new KvServer(new CommandProcessor(s), config.port(),
-                config.maxClients(), config.idleTimeoutMs(), config.maxLineBytes());
+                config.maxClients(), config.idleTimeoutMs(), config.maxLineBytes(),
+                config.bindAddress());
         srv.start();
         server = srv;
     }
