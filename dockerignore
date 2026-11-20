@@ -1,0 +1,8 @@
+target/
+.git/
+.github/
+.idea/
+*.iml
+*.snapshot
+*.snapshot.tmp
+*.snapshot.corrupt
