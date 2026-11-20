@@ -16,8 +16,16 @@ cleanup() {
 trap cleanup EXIT
 
 wait_ready() {
-  for _ in $(seq 1 30); do
-    if (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; then
+  # A published Docker port can accept connections (Docker's proxy listens on it) before the
+  # JVM inside the container is listening, so "I can connect" does not mean "the server is up".
+  # Wait until the server really answers a command.
+  for _ in $(seq 1 40); do
+    if [ "$(docker inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" != "true" ]; then
+      echo "container is not running" >&2
+      docker logs "$NAME" >&2 || true
+      return 1
+    fi
+    if [ "$(send 'GET ready-check' 2>/dev/null || true)" = '$-1' ]; then
       return 0
     fi
     sleep 1
