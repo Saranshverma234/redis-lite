@@ -172,6 +172,17 @@ public class KvServer implements AutoCloseable {
         } catch (IOException ignored) {
             // nothing useful to do while shutting down
         }
+        // Wait for the accept thread to leave accept(). On Linux the listening socket is not fully
+        // released until that blocked call returns, so without this a client connecting right
+        // after close() could still get in. When close() returns, nothing is listening any more.
+        Thread accepter = acceptThread;
+        if (accepter != null && accepter != Thread.currentThread()) {
+            try {
+                accepter.join(2000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
         if (pool != null) {
             pool.shutdownNow();
         }
